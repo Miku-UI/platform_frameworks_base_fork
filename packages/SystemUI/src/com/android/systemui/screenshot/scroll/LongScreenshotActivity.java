@@ -18,13 +18,9 @@ package com.android.systemui.screenshot.scroll;
 
 import android.app.Activity;
 import android.app.ActivityOptions;
-import android.app.ActivityTaskManager;
-import android.app.KeyguardManager;
 import android.content.ComponentName;
 import android.content.ContentProvider;
 import android.content.Intent;
-import android.content.pm.ActivityInfo;
-import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.HardwareRenderer;
 import android.graphics.Insets;
@@ -37,7 +33,6 @@ import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Process;
-import android.os.RemoteException;
 import android.os.UserHandle;
 import android.text.TextUtils;
 import android.util.Log;
@@ -121,8 +116,8 @@ public class LongScreenshotActivity extends Activity {
 
     @Inject
     public LongScreenshotActivity(UiEventLogger uiEventLogger, ImageExporter imageExporter,
-            @Main Executor mainExecutor, @Background Executor bgExecutor,
-            LongScreenshotData longScreenshotHolder, ActionIntentExecutor actionExecutor) {
+                                  @Main Executor mainExecutor, @Background Executor bgExecutor,
+                                  LongScreenshotData longScreenshotHolder, ActionIntentExecutor actionExecutor) {
         mUiEventLogger = uiEventLogger;
         mUiExecutor = mainExecutor;
         mBackgroundExecutor = bgExecutor;
@@ -228,31 +223,6 @@ public class LongScreenshotActivity extends Activity {
         }
     }
 
-    private String getForegroundAppLabel() {
-        try {
-            if (getSystemService(KeyguardManager.class).isKeyguardLocked()) {
-                return null;
-            }
-            ComponentName cm;
-            try {
-                final ActivityTaskManager.RootTaskInfo focusedStack =
-                        ActivityTaskManager.getService().getFocusedRootTaskInfo();
-                if (focusedStack != null && focusedStack.topActivity != null) {
-                    cm = focusedStack.topActivity;
-                    final ActivityInfo ai = getPackageManager().getActivityInfo(cm, 0);
-                    return ai.applicationInfo.loadLabel(getPackageManager()).toString();
-                } else {
-                    return null;
-                }
-            } catch (RemoteException e) {
-                Log.e(TAG, "Failed to get foreground task component", e);
-                return null;
-            }
-        } catch (PackageManager.NameNotFoundException e) {
-            return null;
-        }
-    }
-
     private void onLongScreenshotReceived(LongScreenshot longScreenshot) {
         Log.i(TAG, "Completed: " + longScreenshot);
         mLongScreenshot = longScreenshot;
@@ -278,7 +248,6 @@ public class LongScreenshotActivity extends Activity {
             mEnterTransitionView.post(() -> {
                 Rect dest = new Rect();
                 mEnterTransitionView.getBoundsOnScreen(dest);
-                mLongScreenshotHolder.setForegroundAppName(getForegroundAppLabel());
                 mLongScreenshotHolder.takeTransitionDestinationCallback()
                         .setTransitionDestination(dest, () -> {
                             mPreview.animate().alpha(1f);
@@ -452,13 +421,12 @@ public class LongScreenshotActivity extends Activity {
         // TODO(b/298931528): Add support for long screenshot on external displays.
         ListenableFuture<ImageExporter.Result> exportFuture = mImageExporter.export(
                 mBackgroundExecutor, UUID.randomUUID(), mOutputBitmap, ZonedDateTime.now(),
-                mLongScreenshotHolder.getForegroundAppName(),
                 mScreenshotUserHandle, Display.DEFAULT_DISPLAY);
         exportFuture.addListener(() -> onExportCompleted(action, exportFuture), mUiExecutor);
     }
 
     private void onExportCompleted(PendingAction action,
-            ListenableFuture<ImageExporter.Result> exportFuture) {
+                                   ListenableFuture<ImageExporter.Result> exportFuture) {
         setButtonsEnabled(true);
         ImageExporter.Result result;
         try {

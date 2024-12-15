@@ -47,7 +47,6 @@ import androidx.exifinterface.media.ExifInterface;
 import androidx.test.filters.MediumTest;
 
 import com.android.systemui.SysuiTestCase;
-import com.android.systemui.flags.FakeFeatureFlags;
 
 import com.google.common.util.concurrent.ListenableFuture;
 
@@ -79,7 +78,6 @@ public class ImageExporterTest extends SysuiTestCase {
     private static final ZonedDateTime CAPTURE_TIME =
             ZonedDateTime.of(LocalDateTime.of(2020, 12, 15, 13, 15), ZoneId.of("America/New_York"));
 
-    private FakeFeatureFlags mFeatureFlags = new FakeFeatureFlags();
     @Mock
     private ContentResolver mMockContentResolver;
 
@@ -92,7 +90,7 @@ public class ImageExporterTest extends SysuiTestCase {
     public void testImageFilename() {
         assertEquals("image file name", "Screenshot_20201215-131500.png",
                 ImageExporter.createFilename(CAPTURE_TIME, CompressFormat.PNG,
-                    Display.DEFAULT_DISPLAY));
+                        Display.DEFAULT_DISPLAY));
     }
 
     @Test
@@ -125,13 +123,13 @@ public class ImageExporterTest extends SysuiTestCase {
     @Test
     public void testImageExport() throws ExecutionException, InterruptedException, IOException {
         ContentResolver contentResolver = mContext.getContentResolver();
-        ImageExporter exporter = new ImageExporter(contentResolver, mFeatureFlags);
+        ImageExporter exporter = new ImageExporter(contentResolver);
 
         UUID requestId = UUID.fromString("3c11da99-9284-4863-b1d5-6f3684976814");
         Bitmap original = createCheckerBitmap(10, 10, 10);
 
         ListenableFuture<ImageExporter.Result> direct =
-                exporter.export(DIRECT_EXECUTOR, requestId, original, CAPTURE_TIME, null,
+                exporter.export(DIRECT_EXECUTOR, requestId, original, CAPTURE_TIME,
                         Process.myUserHandle(), Display.DEFAULT_DISPLAY);
         assertTrue("future should be done", direct.isDone());
         assertFalse("future should not be canceled", direct.isCancelled());
@@ -191,7 +189,7 @@ public class ImageExporterTest extends SysuiTestCase {
         // metadata are not affected by the specified file name.
         final String customizedFileName = "customized_file_name";
         ContentResolver contentResolver = mContext.getContentResolver();
-        ImageExporter exporter = new ImageExporter(contentResolver, mFeatureFlags);
+        ImageExporter exporter = new ImageExporter(contentResolver);
 
         UUID requestId = UUID.fromString("3c11da99-9284-4863-b1d5-6f3684976814");
         Bitmap original = createCheckerBitmap(10, 10, 10);
@@ -211,7 +209,7 @@ public class ImageExporterTest extends SysuiTestCase {
     public void testMediaStoreMetadata() {
         String name = ImageExporter.createFilename(CAPTURE_TIME, CompressFormat.PNG,
                 Display.DEFAULT_DISPLAY);
-        ContentValues values = ImageExporter.createMetadata(CAPTURE_TIME, CompressFormat.PNG, name, null);
+        ContentValues values = ImageExporter.createMetadata(CAPTURE_TIME, CompressFormat.PNG, name);
         assertEquals("Pictures/Screenshots",
                 values.getAsString(MediaStore.MediaColumns.RELATIVE_PATH));
         assertEquals("Screenshot_20201215-131500.png",
@@ -228,7 +226,7 @@ public class ImageExporterTest extends SysuiTestCase {
 
     @Test
     public void testSetUser() {
-        ImageExporter exporter = new ImageExporter(mMockContentResolver, mFeatureFlags);
+        ImageExporter exporter = new ImageExporter(mMockContentResolver);
 
         UserHandle imageUserHande = UserHandle.of(10);
 
@@ -237,7 +235,7 @@ public class ImageExporterTest extends SysuiTestCase {
         Mockito.when(mMockContentResolver.insert(uriCaptor.capture(), Mockito.any())).thenReturn(
                 null);
         exporter.export(DIRECT_EXECUTOR, UUID.fromString("3c11da99-9284-4863-b1d5-6f3684976814"),
-                null, CAPTURE_TIME, "", imageUserHande, Display.DEFAULT_DISPLAY);
+                null, CAPTURE_TIME, imageUserHande, Display.DEFAULT_DISPLAY);
 
         Uri expected = MediaStore.Images.Media.EXTERNAL_CONTENT_URI;
         expected = ContentProvider.maybeAddUserId(expected, imageUserHande.getIdentifier());
